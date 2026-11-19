@@ -8,8 +8,8 @@ import org.apache.log4j.Logger;
 import org.bahmni.module.bahmni.ie.apps.config.PdfFormConfig;
 import org.bahmni.module.bahmni.ie.apps.util.json.impl.ParserImpl;
 import org.bahmni.module.bahmni.ie.apps.util.pdf.BahmniPDFForm;
+import org.xhtmlrenderer.pdf.DefaultPDFCreationListener;
 import org.xhtmlrenderer.pdf.ITextRenderer;
-import org.xhtmlrenderer.pdf.PDFCreationListener;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -41,11 +41,7 @@ public class BahmniPDFFormImpl implements BahmniPDFForm {
         addTitle();
 
         ITextRenderer renderer = new ITextRenderer();
-        renderer.setListener(new PDFCreationListener() {
-            @Override
-            public void preOpen(ITextRenderer renderer) {
-            }
-
+        renderer.setListener(new DefaultPDFCreationListener() {
             @Override
             public void preWrite(ITextRenderer renderer, int pageCount) {
                 PdfWriter writer = renderer.getWriter();
@@ -53,16 +49,20 @@ public class BahmniPDFFormImpl implements BahmniPDFForm {
                     writer.getInfo().put(PdfName.PRODUCER, new PdfString(PDF_PRODUCER));
                 }
             }
-
-            @Override
-            public void onClose(ITextRenderer renderer) {
-            }
         });
 
-        renderer.setDocumentFromString(wrapAsXhtml(html));
-        renderer.layout();
-        try (OutputStream outputStream = new FileOutputStream(filename)) {
-            renderer.createPDF(outputStream);
+        try {
+            renderer.setDocumentFromString(wrapAsXhtml(html));
+            renderer.layout();
+            try (OutputStream outputStream = new FileOutputStream(filename)) {
+                renderer.createPDF(outputStream);
+            }
+        } catch (DocumentException e) {
+            logger.error("PDF generation failed for form " + title, e);
+            throw new IOException("PDF generation failed", e);
+        } catch (RuntimeException e) {
+            logger.error("PDF layout failed for form " + title, e);
+            throw new IOException("PDF generation failed: malformed document", e);
         }
         return filename;
     }
@@ -287,6 +287,8 @@ public class BahmniPDFFormImpl implements BahmniPDFForm {
         }
         return text.replace("&", "&amp;")
                 .replace("<", "&lt;")
-                .replace(">", "&gt;");
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
     }
 }

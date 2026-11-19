@@ -130,6 +130,28 @@ public class BahmniPDFFormImplTest {
     }
 
     @Test
+    public void shouldEscapeSpecialCharactersInLabel() throws IOException {
+        bahmniPDFForm.addLabel("Tom & Jerry's <report> \"draft\"");
+        String filename = bahmniPDFForm.create();
+        PdfReader reader = new PdfReader(filename);
+
+        String textFromPage = new PdfTextExtractor(reader).getTextFromPage(1);
+
+        assertThat(textFromPage, containsString("Tom & Jerry's <report> \"draft\""));
+    }
+
+    @Test
+    public void shouldRenderAccentedLatinLabelWithoutFailing() throws IOException {
+        bahmniPDFForm.addLabel("café résumé été");
+        String filename = bahmniPDFForm.create();
+        PdfReader reader = new PdfReader(filename);
+
+        String textFromPage = new PdfTextExtractor(reader).getTextFromPage(1);
+
+        assertThat(textFromPage, containsString("café résumé été"));
+    }
+
+    @Test
     public void shouldAddCodedField() throws IOException {
         bahmniPDFForm.addCodedField("Coded", Arrays.asList("code1", "code2", "code3", "code4", "code5"));
         String filename = bahmniPDFForm.create();
